@@ -53,9 +53,11 @@ export const analyzeMetrics = async (req, res) => {
         const aggregated = aggregator.aggregateByScreen();
 
         if (aggregated.length === 0) {
-
-            return res.status(400).json({
-                message: 'No metrics to analyze'
+            return res.status(200).json({
+                severity: "low",
+                insights: [],
+                recommendations: [],
+                message: "No metrics available yet"
             });
         }
 
