@@ -1,4 +1,5 @@
 import metricStore from "../services/metrics.store.js";
+import { insertMetrics, getUserMetrics } from "../repositories/metrics.repository.js";
 import aggregator from "../services/metrics.aggregator.js";
 import { buildAIPayload } from "../services/ai.payload.builder.js";
 import { analyzePerformance } from "../services/gemini.service.js";
@@ -11,7 +12,7 @@ export const healthCheck = (req, res) => {
 };
 
 // put for add metrics
-export const collectMetric = (req, res) => {
+export const collectMetric = async (req, res) => {
 
     const metric = req.body;
 
@@ -22,20 +23,29 @@ export const collectMetric = (req, res) => {
         });
     }
 
-    metricStore.addMetric(metric);
+    try {
 
-    return res.status(201).json({
-        message: 'Metric collected successfully'
-    });
+        await insertMetrics(req.user.userId, req.body);
+
+        return res.status(201).json({
+            message: 'Metric collected successfully'
+        });
+
+    } catch (error) {
+
+        res.status(400).json({ error: err.message });
+
+    }
+
 }
 
-export const getAllMetrics = (req, res) => {
-    const metrics = metricStore.getAllMetrics();
+export const getAllMetrics = async (req, res) => {
+    const metrics = await getUserMetrics(req.user.userId);
     res.status(200).json(metrics);
 }
 
-export const getAggregatedMetrics = (req, res) => {
-    const summary = aggregator.aggregateByScreen();
+export const getAggregatedMetrics = async (req, res) => {
+    const summary = await aggregator.aggregateByScreen(req.user.userId);
     res.status(200).json(summary);
 }
 
@@ -50,7 +60,7 @@ const safeJsonParse = (text) => {
 export const analyzeMetrics = async (req, res) => {
     try {
 
-        const aggregated = aggregator.aggregateByScreen();
+        const aggregated = await aggregator.aggregateByScreen(req.user.userId);
 
         if (aggregated.length === 0) {
             return res.status(200).json({

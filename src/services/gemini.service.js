@@ -3,16 +3,25 @@ import { GoogleGenAI } from "@google/genai";
 // DEBUGGING: Check if key exists (Do not share logs with real keys)
 console.log("API Key available:", !!process.env.GOOGLE_API_KEY);
 
-if (process.env.NODE_ENV !== "test") {
 
-    if (!process.env.GOOGLE_API_KEY) {
-        console.error("❌ FATAL: GOOGLE_API_KEY is missing from process.env");
-        process.exit(1);
-    }
-
-}
 
 export async function analyzePerformance(payload) {
+
+    if (process.env.NODE_ENV !== "test") {
+
+        if (!process.env.GOOGLE_API_KEY) {
+            console.error("❌ FATAL: GOOGLE_API_KEY is missing from process.env");
+            process.exit(1);
+        }
+        if (process.env.NODE_ENV !== "test") {
+
+            if (!process.env.GOOGLE_API_KEY) {
+                console.error("❌ FATAL: GOOGLE_API_KEY is missing from process.env");
+                process.exit(1);
+            }
+
+        }
+    }
 
     // ✅ Return mock response during tests
     if (process.env.NODE_ENV === "test") {

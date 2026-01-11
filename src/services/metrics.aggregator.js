@@ -1,8 +1,8 @@
-import metricstore from "./metrics.store.js";
+import { getUserMetrics } from "../repositories/user.repositoy.js";
 
-function aggregateByScreen() {
+async function aggregateByScreen(userId) {
 
-    const metrics = metricstore.getAllMetrics();
+    const metrics = await getUserMetrics(userId);
 
     const grouped = {};
 

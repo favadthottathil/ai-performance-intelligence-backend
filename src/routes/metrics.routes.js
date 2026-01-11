@@ -7,16 +7,18 @@ import {
   analyzeMetrics,
 } from "../controllers/metrics.controllers.js";
 
+import authMiddleware from "../middlewares/auth.middlewares.js";
+
 const router = express.Router();
 
 router.get('/health', healthCheck);
 
-router.get('/', getAllMetrics);
+router.get('/', authMiddleware, getAllMetrics);
 
-router.post('/',collectMetric);
+router.post('/', authMiddleware, collectMetric);
 
-router.get('/summary', getAggregatedMetrics);
+router.get('/summary', authMiddleware, getAggregatedMetrics);
 
-router.post('/analyze', analyzeMetrics);
+router.post('/analyze', authMiddleware, analyzeMetrics);
 
 export default router;
