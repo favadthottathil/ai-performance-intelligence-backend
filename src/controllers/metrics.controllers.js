@@ -1,4 +1,4 @@
-import { insertMetrics, getUserMetrics } from "../repositories/user.repository.js";
+import { insertMetrics, getUserMetrics } from "../repositories/metrics.repository.js";
 import aggregator from "../services/metrics.aggregator.js";
 import { buildAIPayload } from "../services/ai.payload.builder.js";
 import { analyzePerformance } from "../services/gemini.service.js";
