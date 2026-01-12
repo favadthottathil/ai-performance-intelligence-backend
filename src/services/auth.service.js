@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { createUser, findUserByEmail } from "../repositories/user.repositoy.js";
+import { createUser, findUserByEmail } from "../repositories/user.repository.js";
 
 const SALT_ROUNDS = 10;
 
