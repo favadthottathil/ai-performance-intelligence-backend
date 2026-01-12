@@ -1,8 +1,4 @@
-import { getUserMetrics } from "../repositories/user.repositoy.js";
-
-async function aggregateByScreen(userId) {
-
-    const metrics = await getUserMetrics(userId);
+async function aggregateByScreen(metrics) {
 
     const grouped = {};
 

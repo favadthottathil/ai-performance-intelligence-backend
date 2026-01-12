@@ -1,5 +1,4 @@
-import metricStore from "../services/metrics.store.js";
-import { insertMetrics, getUserMetrics } from "../repositories/metrics.repository.js";
+import { insertMetrics, getUserMetrics } from "../repositories/user.repository.js";
 import aggregator from "../services/metrics.aggregator.js";
 import { buildAIPayload } from "../services/ai.payload.builder.js";
 import { analyzePerformance } from "../services/gemini.service.js";
@@ -45,7 +44,9 @@ export const getAllMetrics = async (req, res) => {
 }
 
 export const getAggregatedMetrics = async (req, res) => {
-    const summary = await aggregator.aggregateByScreen(req.user.userId);
+
+    const metrics = await getUserMetrics(req.user.userId);
+    const summary = await aggregator.aggregateByScreen(metrics);
     res.status(200).json(summary);
 }
 
@@ -60,7 +61,9 @@ const safeJsonParse = (text) => {
 export const analyzeMetrics = async (req, res) => {
     try {
 
-        const aggregated = await aggregator.aggregateByScreen(req.user.userId);
+        const metrics = await getUserMetrics(req.user.userId);
+
+        const aggregated = await aggregator.aggregateByScreen(metrics);
 
         if (aggregated.length === 0) {
             return res.status(200).json({
