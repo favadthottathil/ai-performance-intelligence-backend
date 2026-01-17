@@ -1,24 +1,21 @@
-  import express from "express";
-  import {
-    healthCheck,
-    collectMetric,
-    getAllMetrics,
-    getAggregatedMetrics,
-    analyzeMetrics,
-  } from "../controllers/metrics.controllers.js";
+import express from "express";
+import {
+  collectMetric,
+  getAllMetrics,
+  getAggregatedMetrics,
+  analyzeMetrics,
+} from "../controllers/metrics.controllers.js";
 
-  import { authMiddleware } from "../middlewares/auth.middlewares.js";
+import { appAuthMiddleware } from "../middlewares/appAuth.middleware.js";
 
-  const router = express.Router();
+const router = express.Router();
 
-  router.get('/health', healthCheck);
+router.get('/', appAuthMiddleware, getAllMetrics);
 
-  router.get('/', authMiddleware, getAllMetrics);
+router.post('/', appAuthMiddleware, collectMetric);
 
-  router.post('/', authMiddleware, collectMetric);
+router.get('/summary', appAuthMiddleware, getAggregatedMetrics);
 
-  router.get('/summary', authMiddleware, getAggregatedMetrics);
+router.post('/analyze', appAuthMiddleware, analyzeMetrics);
 
-  router.post('/analyze', authMiddleware, analyzeMetrics);
-
-  export default router;
+export default router;

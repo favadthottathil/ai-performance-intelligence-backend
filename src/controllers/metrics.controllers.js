@@ -4,12 +4,6 @@ import { buildAIPayload } from "../services/ai.payload.builder.js";
 import { analyzePerformance } from "../services/gemini.service.js";
 import { calculateSeverity } from "../services/severity.scorer.js";
 
-export const healthCheck = (req, res) => {
-    res.status(200).json({
-        status: 'Backend is running 🚀',
-    });
-};
-
 // put for add metrics
 export const collectMetric = async (req, res) => {
 
@@ -24,7 +18,7 @@ export const collectMetric = async (req, res) => {
 
     try {
 
-        await insertMetrics(req.user.userId, req.body);
+        await insertMetrics(req.user.appId, req.body);
 
         return res.status(201).json({
             message: 'Metric collected successfully'
@@ -39,13 +33,13 @@ export const collectMetric = async (req, res) => {
 }
 
 export const getAllMetrics = async (req, res) => {
-    const metrics = await getUserMetrics(req.user.userId);
+    const metrics = await getUserMetrics(req.user.appId);
     res.status(200).json(metrics);
 }
 
 export const getAggregatedMetrics = async (req, res) => {
 
-    const metrics = await getUserMetrics(req.user.userId);
+    const metrics = await getUserMetrics(req.user.appId);
     const summary = await aggregator.aggregateByScreen(metrics);
     res.status(200).json(summary);
 }
@@ -61,7 +55,7 @@ const safeJsonParse = (text) => {
 export const analyzeMetrics = async (req, res) => {
     try {
 
-        const metrics = await getUserMetrics(req.user.userId);
+        const metrics = await getUserMetrics(req.user.appId);
 
         const aggregated = await aggregator.aggregateByScreen(metrics);
 
