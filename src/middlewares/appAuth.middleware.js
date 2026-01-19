@@ -1,8 +1,10 @@
-import port from "../config/db.js";
+import pool from "../config/db.js";
 
 export async function appAuthMiddleware(req, res, next) {
 
     const apiKey = req.headers["x-api-key"];
+
+    console.log("Incoming x-api-key:", apiKey); // 👈 ADD THIS
 
     if (!apiKey) {
         return res.status(401).json({
@@ -14,6 +16,8 @@ export async function appAuthMiddleware(req, res, next) {
         `SELECT id FROM apps WHERE api_key = $1`,
         [apiKey]
     );
+
+    console.log("DB result:", result.rows); // 👈 ADD THIS
 
     if (result.rows.length === 0) {
         return res.status(401).json({

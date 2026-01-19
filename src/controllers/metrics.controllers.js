@@ -39,9 +39,13 @@ export const getAllMetrics = async (req, res) => {
 
 export const getAggregatedMetrics = async (req, res) => {
 
-    const metrics = await getUserMetrics(req.user.appId);
-    const summary = await aggregator.aggregateByScreen(metrics);
-    res.status(200).json(summary);
+    try {
+        const metrics = await getUserMetrics(req.user.appId);
+        const summary = await aggregator.aggregateByScreen(metrics);
+        res.status(200).json(summary);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 }
 
 const safeJsonParse = (text) => {

@@ -8,14 +8,16 @@ import {
 
 import { appAuthMiddleware } from "../middlewares/appAuth.middleware.js";
 
+import { authMiddleware } from "../middlewares/auth.middleware.js";
+
 const router = express.Router();
 
 router.get('/', appAuthMiddleware, getAllMetrics);
 
 router.post('/', appAuthMiddleware, collectMetric);
 
-router.get('/summary', appAuthMiddleware, getAggregatedMetrics);
+router.get('/summary', authMiddleware, getAggregatedMetrics);
 
-router.post('/analyze', appAuthMiddleware, analyzeMetrics);
+router.post('/analyze', authMiddleware, analyzeMetrics);
 
 export default router;
