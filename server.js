@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import metricsRoutes from "./src/routes/metrics.routes.js";
 import authRoutes from "./src/routes/auth.routes.js";
+import appsRoutes from "./src/routes/apps.routes.js";
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,6 +17,8 @@ app.use(express.json());
 app.use("/metrics", metricsRoutes);
 
 app.use("/auth", authRoutes);
+
+app.use("/apps", appsRoutes);
 
 pool.query("SELECT 1")
   .then(() => console.log("✅ DB connected"))
