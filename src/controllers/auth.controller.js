@@ -6,11 +6,10 @@ export async function register(req, res) {
 
         const { email, password } = req.body;
 
-        const user = await registerUser(email, password);
+        const token = await registerUser(email, password);
 
         res.status(201).json({
-            id: user.id,
-            email: user.email,
+            token: token
         });
 
     } catch (error) {
@@ -22,7 +21,7 @@ export async function login(req, res) {
     try {
         const { email, password } = req.body;
         const token = await loginUser(email, password);
-        res.json({ token });
+        res.status(201).json({ token: token });
     } catch (error) {
         res.status(401).json({ error: error.message });
     }

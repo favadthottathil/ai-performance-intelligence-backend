@@ -14,7 +14,13 @@ export async function registerUser(email, password) {
 
     const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    return createUser(email, password_hash);
+    const newUser = await createUser(email, password_hash);
+
+    return jwt.sign(
+        { userId: newUser.id },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+    )
 }
 
 export async function loginUser(email, password) {
