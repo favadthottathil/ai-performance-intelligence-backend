@@ -18,7 +18,7 @@ export const collectMetric = async (req, res) => {
 
     try {
 
-        await insertMetrics(req.user.appId, req.body);
+        await insertMetrics(req.appId, req.body);
 
         return res.status(201).json({
             message: 'Metric collected successfully'
@@ -26,7 +26,7 @@ export const collectMetric = async (req, res) => {
 
     } catch (error) {
 
-        res.status(400).json({ error: err.message });
+        res.status(500).json({ error: error.message });
 
     }
 
