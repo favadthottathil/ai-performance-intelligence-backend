@@ -1,4 +1,4 @@
-import { insertMetrics, getUserMetrics } from "../repositories/metrics.repository.js";
+import { insertMetrics, getUserMetrics, getAppMetrics } from "../repositories/metrics.repository.js";
 import aggregator from "../services/metrics.aggregator.js";
 import { buildAIPayload } from "../services/ai.payload.builder.js";
 import { analyzePerformance } from "../services/gemini.service.js";
@@ -9,6 +9,10 @@ export const collectMetric = async (req, res) => {
 
     const metric = req.body;
 
+    const apiToken = req.headers['x-api-key'];
+
+    console.log(apiToken);
+
     if (!metric.event || !metric.screen || !metric.timestamp) {
 
         return res.status(400).json({
@@ -17,6 +21,8 @@ export const collectMetric = async (req, res) => {
     }
 
     try {
+
+        // console.log(req.appId, req.user.userId);
 
         await insertMetrics(req.appId, req.body);
 
@@ -33,14 +39,28 @@ export const collectMetric = async (req, res) => {
 }
 
 export const getAllMetrics = async (req, res) => {
-    const metrics = await getUserMetrics(req.user.appId);
+    const metrics = await getUserMetrics(req.appId, req.user.userId);
     res.status(200).json(metrics);
 }
 
 export const getAggregatedMetrics = async (req, res) => {
 
+    const { appId } = req.query;
+    const userId = req.user.userId;
+
+    if (!appId) {
+        return res.status(400).json({ error: "appId is required" });
+    }
+
     try {
-        const metrics = await getUserMetrics(req.user.appId);
+        const app = await getAppMetrics(userId, appId);
+
+        if (app.rows.length === 0) {
+            return res.status(403).json({ error: "Access denied" });
+        }
+
+        const metrics = await getUserMetrics(appId);
+
         const summary = await aggregator.aggregateByScreen(metrics);
         res.status(200).json(summary);
     } catch (error) {
@@ -57,9 +77,19 @@ const safeJsonParse = (text) => {
 };
 
 export const analyzeMetrics = async (req, res) => {
+
+    const { appId } = req.query;
+    const userId = req.user.userId;
+
     try {
 
-        const metrics = await getUserMetrics(req.user.appId);
+        const app = await getAppMetrics(userId, appId);
+
+        if (app.rows.length === 0) {
+            return res.status(403).json({ error: "Access denied" });
+        }
+
+        const metrics = await getUserMetrics(appId);
 
         const aggregated = await aggregator.aggregateByScreen(metrics);
 

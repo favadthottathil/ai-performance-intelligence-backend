@@ -12,12 +12,12 @@ import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.get('/', appAuthMiddleware, getAllMetrics);
+// router.get('/', appAuthMiddleware, getAllMetrics);
 
 router.post('/', appAuthMiddleware, collectMetric);
 
 router.get('/summary', authMiddleware, getAggregatedMetrics);
 
-router.post('/analyze', authMiddleware, analyzeMetrics);
+router.get('/analyze', authMiddleware, analyzeMetrics);
 
 export default router;

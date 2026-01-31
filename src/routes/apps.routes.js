@@ -1,9 +1,11 @@
 import express from "express";
-import { createApp } from "../controllers/apps.controller.js";
+import { createOrRotateApp, getApps } from "../controllers/apps.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/", authMiddleware, createApp);
+router.post("/", authMiddleware, createOrRotateApp);
+
+router.get("/", authMiddleware, getApps);
 
 export default router;
