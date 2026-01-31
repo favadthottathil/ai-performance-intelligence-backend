@@ -15,7 +15,7 @@ export async function insertApp(userId, name, apiKey) {
 
 export async function getApp(userId) {
     const result = await pool.query(
-        `SELECT id, name FROM apps WHERE user_id = $1`,
+        `SELECT id, name, api_key FROM apps WHERE user_id = $1`,
         [userId]
     );
 
