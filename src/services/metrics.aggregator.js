@@ -5,9 +5,9 @@ async function aggregateByScreen(metrics) {
     metrics.forEach((item) => {
         const screen = item.screen;
 
-        const renderTime = item.metrics?.render_time_ms || 0;
+        const renderTime = item.metrics?.render_time || 0;
 
-        const frameDrops = item.metrics?.frame_drops || 0;
+        const frameDrops = item.metrics?.frame_time || 0;
 
         if (!grouped[screen]) {
             grouped[screen] = {
