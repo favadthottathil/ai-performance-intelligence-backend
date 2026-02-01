@@ -1,19 +1,40 @@
 import pool from '../config/db.js';
 
-export async function insertMetrics(appid, metrics) {
-
-    const { screen, event, render_time, frame_drops } = metrics;
+export async function insertMetrics(appId, metrics) {
+    const {
+        screen,
+        event,
+        timestamp,
+        render_time_ms,
+        frame_time_ms,
+        frame_dropped,
+    } = metrics;
 
     await pool.query(
-
-        `INSERT INTO metrics (app_id, screen, event, render_time, frame_drops)
-
-         VALUES ($1, $2, $3, $4, $5)`,
-
-        [appid, screen, event, render_time, frame_drops]
-
+        `
+    INSERT INTO metrics (
+      app_id,
+      screen,
+      event,
+      timestamp,
+      render_time_ms,
+      frame_time_ms,
+      frame_dropped
     )
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `,
+        [
+            appId,
+            screen,
+            event,
+            timestamp,
+            render_time_ms ?? null,
+            frame_time_ms ?? null,
+            frame_dropped ?? null,
+        ]
+    );
 }
+
 
 export async function getAppMetrics(userId, appId) {
 
