@@ -13,7 +13,7 @@ export const collectMetric = async (req, res) => {
 
     console.log(apiToken);
 
-    if (!metric.event || !metric.screen || !metric.timestamp) {
+    if (!metric.event || !metric.screen) {
 
         return res.status(400).json({
             message: 'Invalid metric payload'

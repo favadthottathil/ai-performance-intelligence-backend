@@ -4,7 +4,6 @@ export async function insertMetrics(appId, metrics) {
     const {
         screen,
         event,
-        timestamp,
         render_time_ms,
         frame_time_ms,
         frame_dropped,
@@ -16,18 +15,16 @@ export async function insertMetrics(appId, metrics) {
       app_id,
       screen,
       event,
-      timestamp,
-      render_time_ms,
-      frame_time_ms,
+      render_time,
+      frame_time,
       frame_dropped
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    VALUES ($1, $2, $3, $4, $5, $6)
     `,
         [
             appId,
             screen,
             event,
-            timestamp,
             render_time_ms ?? null,
             frame_time_ms ?? null,
             frame_dropped ?? null,
