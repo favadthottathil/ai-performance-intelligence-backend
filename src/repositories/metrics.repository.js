@@ -4,8 +4,8 @@ export async function insertMetrics(appId, metrics) {
     const {
         screen,
         event,
-        render_time_ms,
-        frame_time_ms,
+        render_time,
+        frame_time,
         frame_dropped,
     } = metrics;
 
@@ -25,8 +25,8 @@ export async function insertMetrics(appId, metrics) {
             appId,
             screen,
             event,
-            render_time_ms ?? null,
-            frame_time_ms ?? null,
+            render_time ?? null,
+            frame_time ?? null,
             frame_dropped ?? null,
         ]
     );
