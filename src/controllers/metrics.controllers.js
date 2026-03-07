@@ -1,5 +1,5 @@
 import { insertMetrics, getUserMetrics, getAppMetrics } from "../repositories/metrics.repository.js";
-import aggregator from "../services/metrics.aggregator.js";
+import * as aggregator from "../services/metrics.aggregator.js";
 import { buildAIPayload } from "../services/ai.payload.builder.js";
 import { analyzePerformance } from "../services/gemini.service.js";
 import { calculateSeverity } from "../services/severity.scorer.js";
