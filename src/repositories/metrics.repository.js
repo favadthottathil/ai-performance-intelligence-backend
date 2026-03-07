@@ -7,6 +7,11 @@ export async function insertMetrics(appId, metrics) {
         render_time,
         frame_time,
         frame_dropped,
+        api_latency,
+        is_error,
+        error_message,
+        stack_trace,
+        screen_load_time,
     } = metrics;
 
     await pool.query(
@@ -17,9 +22,14 @@ export async function insertMetrics(appId, metrics) {
       event,
       render_time,
       frame_time,
-      frame_dropped
+      frame_dropped,
+      api_latency,
+      is_error,
+      error_message,
+      stack_trace,
+      screen_load_time
     )
-    VALUES ($1, $2, $3, $4, $5, $6)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `,
         [
             appId,
@@ -28,6 +38,11 @@ export async function insertMetrics(appId, metrics) {
             render_time ?? null,
             frame_time ?? null,
             frame_dropped ?? null,
+            api_latency ?? null,
+            is_error ?? null,
+            error_message ?? null,
+            stack_trace ?? null,
+            screen_load_time ?? null,
         ]
     );
 }
