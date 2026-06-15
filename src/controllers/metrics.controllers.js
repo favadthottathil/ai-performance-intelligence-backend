@@ -1,20 +1,21 @@
-import { insertMetrics, getUserMetrics, getAppMetrics } from "../repositories/metrics.repository.js";
+import { insertMetrics, insertMetricsBatch, getUserMetrics, getAppMetrics } from "../repositories/metrics.repository.js";
 import * as aggregator from "../services/metrics.aggregator.js";
 import { buildAIPayload } from "../services/ai.payload.builder.js";
 import { analyzePerformance } from "../services/gemini.service.js";
 import { calculateSeverity } from "../services/severity.scorer.js";
+import { publishMetric, subscribeToMetrics } from "../services/metrics.events.js";
 
-// put for add metrics
+const MAX_BATCH_SIZE = 500;
+
+const isValidMetric = (metric) =>
+    !!metric && typeof metric.event === "string" && metric.event.length > 0
+    && typeof metric.screen === "string" && metric.screen.length > 0;
+
 export const collectMetric = async (req, res) => {
 
     const metric = req.body;
 
-    const apiToken = req.headers['x-api-key'];
-
-    console.log(apiToken);
-
-    if (!metric.event || !metric.screen) {
-
+    if (!isValidMetric(metric)) {
         return res.status(400).json({
             message: 'Invalid metric payload'
         });
@@ -22,9 +23,9 @@ export const collectMetric = async (req, res) => {
 
     try {
 
-        // console.log(req.appId, req.user.userId);
+        await insertMetrics(req.appId, metric);
 
-        await insertMetrics(req.appId, req.body);
+        publishMetric(req.appId, metric);
 
         return res.status(201).json({
             message: 'Metric collected successfully'
@@ -38,9 +39,38 @@ export const collectMetric = async (req, res) => {
 
 }
 
-export const getAllMetrics = async (req, res) => {
-    const metrics = await getUserMetrics(req.appId, req.user.userId);
-    res.status(200).json(metrics);
+export const collectMetricsBatch = async (req, res) => {
+
+    const metrics = req.body?.metrics;
+
+    if (!Array.isArray(metrics) || metrics.length === 0) {
+        return res.status(400).json({ message: 'metrics must be a non-empty array' });
+    }
+
+    if (metrics.length > MAX_BATCH_SIZE) {
+        return res.status(400).json({ message: `metrics batch exceeds maximum of ${MAX_BATCH_SIZE}` });
+    }
+
+    if (!metrics.every(isValidMetric)) {
+        return res.status(400).json({ message: 'Invalid metric payload' });
+    }
+
+    try {
+
+        await insertMetricsBatch(req.appId, metrics);
+
+        metrics.forEach((metric) => publishMetric(req.appId, metric));
+
+        return res.status(201).json({
+            message: `${metrics.length} metrics collected successfully`
+        });
+
+    } catch (error) {
+
+        res.status(500).json({ error: error.message });
+
+    }
+
 }
 
 export const getAggregatedMetrics = async (req, res) => {
@@ -66,6 +96,47 @@ export const getAggregatedMetrics = async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+}
+
+// Streams newly-ingested metrics for an app as Server-Sent Events so the
+// dashboard can update in real time without polling.
+export const streamMetrics = async (req, res) => {
+
+    const { appId } = req.query;
+    const userId = req.user.userId;
+
+    if (!appId) {
+        return res.status(400).json({ error: "appId is required" });
+    }
+
+    try {
+        const app = await getAppMetrics(userId, appId);
+
+        if (app.rows.length === 0) {
+            return res.status(403).json({ error: "Access denied" });
+        }
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    res.write(': connected\n\n');
+
+    const unsubscribe = subscribeToMetrics(appId, (metric) => {
+        res.write(`data: ${JSON.stringify(metric)}\n\n`);
+    });
+
+    const heartbeat = setInterval(() => res.write(': ping\n\n'), 30_000);
+
+    req.on('close', () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+        res.end();
+    });
 }
 
 const safeJsonParse = (text) => {
@@ -131,5 +202,3 @@ export const analyzeMetrics = async (req, res) => {
         });
     }
 }
-
-

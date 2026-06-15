@@ -1,36 +1,18 @@
 import "dotenv/config";
 
 import pool from "./src/config/db.js";
-import express from "express";
-import cors from "cors";
-import metricsRoutes from "./src/routes/metrics.routes.js";
-import authRoutes from "./src/routes/auth.routes.js";
-import appsRoutes from "./src/routes/apps.routes.js";
+import app from "./src/app.js";
+
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
 
 const PORT = process.env.PORT || 3000;
 
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.use("/metrics", metricsRoutes);
-
-app.use("/auth", authRoutes);
-
-app.use("/apps", appsRoutes);
-
 pool.query("SELECT 1")
-  .then(() => console.log("✅ DB connected"))
-  .catch(console.error);
+  .then(() => console.log("DB connected"))
+  .catch((err) => console.error("DB connection failed:", err.message));
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-
-
-
-
-export default app;
-
-
