@@ -53,5 +53,7 @@ Do not include markdown.
         ],
     });
 
-    return response.text;
+    const raw = response.text ?? "";
+    // Strip markdown code fences Gemini sometimes adds despite instructions
+    return raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
 }

@@ -91,7 +91,7 @@ export const getAggregatedMetrics = async (req, res) => {
 
         const metrics = await getUserMetrics(appId);
 
-        const summary = await aggregator.aggregateByScreen(metrics);
+        const summary = aggregator.aggregateByScreen(metrics);
         res.status(200).json(summary);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -152,6 +152,10 @@ export const analyzeMetrics = async (req, res) => {
     const { appId } = req.query;
     const userId = req.user.userId;
 
+    if (!appId) {
+        return res.status(400).json({ error: "appId is required" });
+    }
+
     try {
 
         const app = await getAppMetrics(userId, appId);
@@ -162,7 +166,7 @@ export const analyzeMetrics = async (req, res) => {
 
         const metrics = await getUserMetrics(appId);
 
-        const aggregated = await aggregator.aggregateByScreen(metrics);
+        const aggregated = aggregator.aggregateByScreen(metrics);
 
         if (aggregated.length === 0) {
             return res.status(200).json({
@@ -173,32 +177,37 @@ export const analyzeMetrics = async (req, res) => {
             });
         }
 
-        const aiPayload =
-            buildAIPayload(aggregated);
-
-        const aiResponse =
-            await analyzePerformance(aiPayload);
-
-        const parsedResponse = safeJsonParse(aiResponse);
-
-        if (!parsedResponse) {
-            return res.status(500).json({
-                error: 'Invalid AI response format',
-            });
-        }
-
         const severity = calculateSeverity(aggregated);
 
-        res.status(200).json({
+        let insights = [];
+        let recommendations = [];
+
+        try {
+            const aiPayload = buildAIPayload(aggregated);
+            const aiResponse = await analyzePerformance(aiPayload);
+            const parsedResponse = safeJsonParse(aiResponse);
+
+            if (parsedResponse) {
+                insights = parsedResponse.issues ?? [];
+                recommendations = parsedResponse.recommendations ?? [];
+            } else {
+                console.warn("AI returned non-JSON response:", aiResponse?.substring(0, 200));
+            }
+        } catch (aiError) {
+            console.error("AI analysis error (non-fatal):", aiError.message);
+        }
+
+        return res.status(200).json({
             severity,
-            insights: parsedResponse.issues,
-            recommendations: parsedResponse.recommendations,
+            insights,
+            recommendations,
         });
 
     } catch (error) {
-        console.error(error);
+        console.error("analyzeMetrics error:", error);
         res.status(500).json({
-            error: 'AI analysis failed',
+            error: 'Analysis failed',
+            detail: error.message,
         });
     }
 }
