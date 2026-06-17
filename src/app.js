@@ -7,6 +7,7 @@ import appsRoutes from "./routes/apps.routes.js";
 const DEFAULT_ORIGINS = [
   "http://localhost:3000",
   "http://localhost:5000",
+  "http://localhost:8080",
   "https://ai-performance-intelligence-dashboa.vercel.app",
 ];
 
