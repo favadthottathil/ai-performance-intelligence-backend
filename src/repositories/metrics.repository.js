@@ -76,3 +76,4 @@ export async function getUserMetrics(appId) {
     return metrics.rows;
 
 }
+

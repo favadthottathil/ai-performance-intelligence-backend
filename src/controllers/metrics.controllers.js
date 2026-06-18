@@ -181,7 +181,6 @@ export const analyzeMetrics = async (req, res) => {
 
         let insights = [];
         let recommendations = [];
-        let aiDebug = null;
 
         try {
             const aiPayload = buildAIPayload(aggregated);
@@ -192,11 +191,9 @@ export const analyzeMetrics = async (req, res) => {
                 insights = parsedResponse.issues ?? [];
                 recommendations = parsedResponse.recommendations ?? [];
             } else {
-                aiDebug = `non-JSON AI response: ${aiResponse?.substring(0, 300)}`;
                 console.warn("AI returned non-JSON response:", aiResponse?.substring(0, 200));
             }
         } catch (aiError) {
-            aiDebug = `${aiError.name}: ${aiError.message}`;
             console.error("AI analysis error (non-fatal):", aiError);
         }
 
@@ -204,7 +201,6 @@ export const analyzeMetrics = async (req, res) => {
             severity,
             insights,
             recommendations,
-            ...(aiDebug && { aiDebug }),
         });
 
     } catch (error) {
