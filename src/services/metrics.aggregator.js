@@ -12,10 +12,13 @@ export function aggregateByScreen(metrics) {
         const apiLatency = Number(item.api_latency) || 0;
         const isCrash = item.event === 'app_crash';
 
+        const isRenderEvent = item.event === 'app_render';
+
         if (!grouped[screen]) {
             grouped[screen] = {
                 screen,
                 totalRenderTime: 0,
+                renderEventCount: 0,
                 frameDropCount: 0,
                 totalEvents: 0,
                 totalApiLatency: 0,
@@ -25,10 +28,13 @@ export function aggregateByScreen(metrics) {
             };
         }
 
-        grouped[screen].totalRenderTime += renderTime;
+        if (isRenderEvent) {
+            grouped[screen].totalRenderTime += renderTime;
+            grouped[screen].renderEventCount += 1;
 
-        if (frameDropped) {
-            grouped[screen].frameDropCount += 1;
+            if (frameDropped) {
+                grouped[screen].frameDropCount += 1;
+            }
         }
 
         if (isApiEvent && item.api_latency != null) {
@@ -50,14 +56,14 @@ export function aggregateByScreen(metrics) {
     return Object.values(grouped).map((item) => {
 
         const avgRender =
-            item.totalEvents > 0
-                ? Math.round(item.totalRenderTime / item.totalEvents)
+            item.renderEventCount > 0
+                ? Math.round(item.totalRenderTime / item.renderEventCount)
                 : 0;
 
         const dropRate =
-            item.totalEvents > 0
+            item.renderEventCount > 0
                 ? Number(
-                    (item.frameDropCount / item.totalEvents).toFixed(2)
+                    (item.frameDropCount / item.renderEventCount).toFixed(2)
                 )
                 : 0;
 
