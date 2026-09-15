@@ -73,9 +73,13 @@ describe("POST /metrics", () => {
             sql.includes("INSERT INTO metrics")
         );
         expect(insertCall).toBeDefined();
+        // Column order matches METRIC_COLUMNS: app_id, screen, target, event,
+        // render_time, frame_time, frame_dropped, api_latency, is_error,
+        // error_message, stack_trace, screen_load_time, client_timestamp.
         expect(insertCall[1]).toEqual([
             APP_ID,
             "home",
+            null,
             "screen_render",
             14,
             null,
@@ -85,7 +89,59 @@ describe("POST /metrics", () => {
             null,
             null,
             null,
+            null,
         ]);
+    });
+
+    it("persists target and client_timestamp when the SDK supplies them", async () => {
+        const response = await request(app)
+            .post("/metrics")
+            .set("x-api-key", VALID_KEY)
+            .send({
+                event: "api_call",
+                screen: "home",
+                target: "/v1/users",
+                api_latency: 140,
+                client_timestamp: "2026-09-15T10:00:00.000Z",
+            });
+
+        expect(response.statusCode).toBe(201);
+
+        const [, values] = mockQuery.mock.calls.find(([sql]) =>
+            sql.includes("INSERT INTO metrics")
+        );
+
+        expect(values[1]).toBe("home");
+        expect(values[2]).toBe("/v1/users");
+        expect(values[7]).toBe(140);
+        expect(values[12]).toBe("2026-09-15T10:00:00.000Z");
+    });
+
+    it("stores an unparseable client_timestamp as null rather than failing", async () => {
+        const response = await request(app)
+            .post("/metrics")
+            .set("x-api-key", VALID_KEY)
+            .send({
+                event: "app_render",
+                screen: "home",
+                client_timestamp: "not-a-date",
+            });
+
+        expect(response.statusCode).toBe(201);
+
+        const [, values] = mockQuery.mock.calls.find(([sql]) =>
+            sql.includes("INSERT INTO metrics")
+        );
+        expect(values[12]).toBeNull();
+    });
+
+    it("rejects a metric whose target is not a usable string", async () => {
+        const response = await request(app)
+            .post("/metrics")
+            .set("x-api-key", VALID_KEY)
+            .send({ event: "api_call", screen: "home", target: "" });
+
+        expect(response.statusCode).toBe(400);
     });
 });
 
@@ -142,9 +198,9 @@ describe("POST /metrics/batch", () => {
         expect(insertCalls).toHaveLength(1);
 
         const [sql, values] = insertCalls[0];
-        // One VALUES clause per metric, 11 columns each.
+        // One VALUES clause per metric, 13 columns each.
         expect(sql.match(/\(\$\d+/g)).toHaveLength(2);
-        expect(values).toHaveLength(22);
+        expect(values).toHaveLength(26);
     });
 });
 

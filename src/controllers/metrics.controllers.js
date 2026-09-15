@@ -7,9 +7,25 @@ import { publishMetric, subscribeToMetrics } from "../services/metrics.events.js
 
 const MAX_BATCH_SIZE = 500;
 
+// The dashboard polls /analyze on a short interval. Gemini calls are slow and
+// billed per request, and severity thresholds do not move meaningfully within
+// a single TTL, so completed analyses are memoized per app.
+const ANALYSIS_CACHE_TTL_MS = Number(process.env.ANALYSIS_CACHE_TTL_MS) || 120_000;
+const analysisCache = new Map();
+
+const readCachedAnalysis = (appId) => {
+    const cached = analysisCache.get(appId);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    if (cached) analysisCache.delete(appId);
+    return null;
+};
+
 const isValidMetric = (metric) =>
     !!metric && typeof metric.event === "string" && metric.event.length > 0
-    && typeof metric.screen === "string" && metric.screen.length > 0;
+    && typeof metric.screen === "string" && metric.screen.length > 0
+    // `target` is optional, but when present it must be a usable string.
+    && (metric.target == null
+        || (typeof metric.target === "string" && metric.target.length > 0));
 
 export const collectMetric = async (req, res) => {
 
@@ -122,21 +138,42 @@ export const streamMetrics = async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    // Proxies that buffer responses would defeat streaming entirely.
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
     res.write(': connected\n\n');
 
-    const unsubscribe = subscribeToMetrics(appId, (metric) => {
-        res.write(`data: ${JSON.stringify(metric)}\n\n`);
-    });
+    let closed = false;
 
-    const heartbeat = setInterval(() => res.write(': ping\n\n'), 30_000);
-
-    req.on('close', () => {
+    const cleanup = () => {
+        if (closed) return;
+        closed = true;
         clearInterval(heartbeat);
         unsubscribe();
         res.end();
+    };
+
+    // Writing to a socket the peer has already dropped throws; without this
+    // guard the rejection would propagate out of an EventEmitter callback
+    // and take down the process.
+    const safeWrite = (chunk) => {
+        if (closed) return;
+        try {
+            res.write(chunk);
+        } catch {
+            cleanup();
+        }
+    };
+
+    const unsubscribe = subscribeToMetrics(appId, (metric) => {
+        safeWrite(`data: ${JSON.stringify(metric)}\n\n`);
     });
+
+    const heartbeat = setInterval(() => safeWrite(': ping\n\n'), 30_000);
+
+    req.on('close', cleanup);
+    res.on('error', cleanup);
 }
 
 const safeJsonParse = (text) => {
@@ -164,6 +201,13 @@ export const analyzeMetrics = async (req, res) => {
             return res.status(403).json({ error: "Access denied" });
         }
 
+        // Access is re-checked above on every request, so a cache hit can
+        // never serve one user's analysis to another.
+        const cached = readCachedAnalysis(appId);
+        if (cached) {
+            return res.status(200).json(cached);
+        }
+
         const metrics = await getUserMetrics(appId);
 
         const aggregated = aggregator.aggregateByScreen(metrics);
@@ -181,6 +225,7 @@ export const analyzeMetrics = async (req, res) => {
 
         let insights = [];
         let recommendations = [];
+        let aiSucceeded = false;
 
         try {
             const aiPayload = buildAIPayload(aggregated);
@@ -190,6 +235,7 @@ export const analyzeMetrics = async (req, res) => {
             if (parsedResponse) {
                 insights = parsedResponse.issues ?? [];
                 recommendations = parsedResponse.recommendations ?? [];
+                aiSucceeded = true;
             } else {
                 console.warn("AI returned non-JSON response:", aiResponse?.substring(0, 200));
             }
@@ -197,11 +243,18 @@ export const analyzeMetrics = async (req, res) => {
             console.error("AI analysis error (non-fatal):", aiError);
         }
 
-        return res.status(200).json({
-            severity,
-            insights,
-            recommendations,
-        });
+        const payload = { severity, insights, recommendations };
+
+        // Only cache a complete result. Caching a degraded (AI-failed)
+        // response would pin empty insights for the whole TTL.
+        if (aiSucceeded) {
+            analysisCache.set(appId, {
+                value: payload,
+                expiresAt: Date.now() + ANALYSIS_CACHE_TTL_MS,
+            });
+        }
+
+        return res.status(200).json(payload);
 
     } catch (error) {
         console.error("analyzeMetrics error:", error);

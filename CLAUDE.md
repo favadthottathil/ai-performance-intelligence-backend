@@ -43,9 +43,26 @@ API keys are cached in a `Map` for 60 seconds in [src/middlewares/appAuth.middle
 
 ## Metrics Ingestion
 
-- Single: `POST /metrics/` — validates `event` and `screen` are non-empty strings
-- Batch: `POST /metrics/batch` — max 500 records, single multi-row `INSERT` with 11 columns per row (see `METRIC_COLUMNS` in [src/repositories/metrics.repository.js](src/repositories/metrics.repository.js))
-- Rate limiter: 300 req/min per `x-api-key` (or IP fallback), configurable via `METRICS_RATE_LIMIT` env var
+- Single: `POST /metrics/` — validates `event` and `screen` are non-empty strings; `target` is optional but must be a non-empty string when present
+- Batch: `POST /metrics/batch` — max 500 records, single multi-row `INSERT` with 13 columns per row (see `METRIC_COLUMNS` in [src/repositories/metrics.repository.js](src/repositories/metrics.repository.js))
+- Rate limiter: 6000 req/min per `x-api-key` (or IP fallback), configurable via `METRICS_RATE_LIMIT`. One key is shared by every device running the host app, so the budget covers the whole installed base.
+
+### `screen` vs `target`
+
+`screen` always names a real, user-visible screen. `target` holds what the event
+acted on when that differs — the request path for `api_call`/`api_error`, the
+handler name for `app_crash`. Keeping endpoints out of `screen` is what stops
+the per-screen aggregation from inventing phantom screens whose render metrics
+are all zero.
+
+### `client_timestamp`
+
+The SDK stamps each event with its occurrence time, stored in
+`client_timestamp`. `created_at` is server *arrival* time, which lags by up to a
+flush interval (far longer if the device was offline) and collapses every event
+in a batch to nearly the same value — prefer `client_timestamp` for ordering and
+windowing. An unparseable value is stored as `NULL` rather than failing the
+whole batch.
 
 ## SSE Streaming
 
@@ -55,7 +72,21 @@ API keys are cached in a `Map` for 60 seconds in [src/middlewares/appAuth.middle
 
 Pipeline: `buildAIPayload` (aggregates by screen) → `analyzePerformance` (Gemini `gemini-2.5-flash`) → `calculateSeverity` (thresholds in [src/services/severity.scorer.js](src/services/severity.scorer.js)).
 
-Severity thresholds: `avgRenderTime > 1000ms` or `frameDropRate > 20%` = high; `> 300ms` or `> 5%` = medium.
+Severity thresholds: `avg_render_time_ms > 1000` or `frame_drop_rate > 0.20` = high; `> 300` or `> 0.05` = medium.
+
+**`frame_drop_rate` is a fraction in the range 0.0–1.0, not a percentage** —
+`0.20` means "20% of frames missed their budget". Comparing it against `20`
+would silently never fire.
+
+Drop rates are only applied once a screen has at least 20 events, since a rate
+over a handful of samples is noise. There is deliberately no absolute
+`total_frame_drops` threshold: a busy screen accumulates a large absolute count
+at a perfectly healthy rate, which previously flagged an app's most-used screens
+as its worst.
+
+A completed analysis is cached per app for `ANALYSIS_CACHE_TTL_MS` (default
+120s) so dashboard refreshes don't trigger a billed Gemini call each time. A
+degraded response (AI call failed) is deliberately not cached.
 
 When `NODE_ENV=test`, [src/services/gemini.service.js](src/services/gemini.service.js) returns mock JSON instead of calling the API.
 
@@ -75,7 +106,20 @@ To test rate limiting, set `process.env.METRICS_RATE_LIMIT = '2'` **before** the
 
 ## Database Migrations
 
-Numbered `.sql` files in [src/db/migrations/](src/db/migrations/) are run in sorted order by [run_migration.js](run_migration.js). Add new migrations as `006_...sql`, `007_...sql`, etc.
+Numbered `.sql` files in [src/db/migrations/](src/db/migrations/) are run in sorted order by [run_migration.js](run_migration.js). Add new migrations as `007_...sql`, `008_...sql`, etc.
+
+## Applications
+
+- `POST /apps` — **always creates a new app.** It never rotates an existing key: doing so as a side effect of creation silently invalidated the key every already-shipped SDK client was using.
+- `POST /apps/:appId/rotate-key` — explicit, separate rotation. Scoped by `user_id` so one user cannot rotate another's key, and it evicts the superseded key from the `appAuthMiddleware` cache so the old key stops working immediately rather than lingering for the 60s TTL.
+- `GET /apps` — returns `200 []` for an account with no apps. An empty list is a valid state, not a 404.
+
+## Error Handling
+
+[src/app.js](src/app.js) registers a terminal error handler. Controllers and
+middleware pass failures to `next(error)` rather than swallowing them; a
+Postgres connection fault surfaces as a logged `503`. Express identifies that
+handler by its four-parameter arity, so its unused `next` parameter must stay.
 
 ## API Key Format
 

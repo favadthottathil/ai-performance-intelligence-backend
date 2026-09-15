@@ -3,6 +3,7 @@ import pool from '../config/db.js';
 const METRIC_COLUMNS = [
     'app_id',
     'screen',
+    'target',
     'event',
     'render_time',
     'frame_time',
@@ -12,12 +13,24 @@ const METRIC_COLUMNS = [
     'error_message',
     'stack_trace',
     'screen_load_time',
+    'client_timestamp',
 ];
+
+// Postgres rejects an out-of-range or malformed timestamp for the whole
+// multi-row INSERT, so one bad client clock would drop an entire batch.
+// Anything unparseable falls back to NULL and `created_at` remains the
+// authoritative arrival time.
+function parseClientTimestamp(value) {
+    if (typeof value !== 'string' || value.length === 0) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
 
 function metricValues(appId, metric) {
     return [
         appId,
         metric.screen,
+        metric.target ?? null,
         metric.event,
         metric.render_time ?? null,
         metric.frame_time ?? null,
@@ -27,13 +40,16 @@ function metricValues(appId, metric) {
         metric.error_message ?? null,
         metric.stack_trace ?? null,
         metric.screen_load_time ?? null,
+        parseClientTimestamp(metric.client_timestamp),
     ];
 }
 
 export async function insertMetrics(appId, metric) {
+    const placeholders = METRIC_COLUMNS.map((_, i) => `$${i + 1}`).join(', ');
+
     await pool.query(
         `INSERT INTO metrics (${METRIC_COLUMNS.join(', ')})
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+         VALUES (${placeholders})`,
         metricValues(appId, metric)
     );
 }
@@ -76,4 +92,3 @@ export async function getUserMetrics(appId) {
     return metrics.rows;
 
 }
-
