@@ -1,0 +1,21 @@
+# dependencies: the image installs its own with `npm ci`
+node_modules
+
+# version control history
+.git
+
+# secrets: must never reach the image
+.env
+.env.*
+
+# test output and tests
+coverage
+test
+
+# docs and Docker files
+*.md
+Dockerfile
+.dockerignore
+
+# unrelated local script
+verify_deploy.mjs
