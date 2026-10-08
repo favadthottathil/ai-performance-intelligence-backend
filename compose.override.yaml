@@ -1,0 +1,13 @@
+# Development overrides. Compose merges this file into compose.yaml on a plain
+# `docker compose up`. For production parity run `docker compose -f compose.yaml up`.
+services:
+  api:
+    build:
+      target: dev
+    volumes:
+      # Source is mounted, not copied, so an edit reaches the running container
+      # immediately and nodemon restarts the server. node_modules stays the one
+      # installed in the image. A package.json change needs `up --build`.
+      - ./src:/app/src:ro
+      - ./server.js:/app/server.js:ro
+    restart: "no"

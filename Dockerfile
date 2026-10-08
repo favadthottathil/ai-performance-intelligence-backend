@@ -3,6 +3,18 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
+# Development target: full dependencies plus nodemon. Selected only by
+# compose.override.yaml (`build.target: dev`); the plain `docker build`, and CI,
+# build the last stage below, so this one never ships.
+FROM node:24.21.0-alpine3.24 AS dev
+ENV NODE_ENV=development
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+USER node
+EXPOSE 3000
+CMD ["node_modules/.bin/nodemon", "--legacy-watch", "server.js"]
+
 FROM node:24.21.0-alpine3.24
 ENV NODE_ENV=production
 WORKDIR /app
