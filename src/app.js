@@ -45,12 +45,21 @@ const DB_FAULT_CODES = new Set([
   "EPIPE",
 ]);
 
+// Postgres SQLSTATE for a unique-constraint violation. It is a conflict with
+// existing data, not a server defect, so it is answered 409 instead of 500.
+const PG_UNIQUE_VIOLATION = "23505";
+
 // Terminal error handler. Express 5 forwards rejected async handlers here, so
 // a transient DB fault becomes a logged 503 rather than an unhandled rejection
 // that can tear down the process mid-ingestion.
 // eslint-disable-next-line no-unused-vars -- Express identifies the error
 // handler by its four-parameter arity; dropping `next` silently disables it.
 app.use((err, _req, res, _next) => {
+  if (err?.code === PG_UNIQUE_VIOLATION) {
+    console.warn("Unique violation:", err.constraint ?? "unknown constraint");
+    return res.status(409).json({ error: "Resource already exists" });
+  }
+
   const isDbFault =
     DB_FAULT_CODES.has(err?.code) ||
     err?.code?.startsWith?.("08"); // Postgres connection-exception class

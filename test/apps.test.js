@@ -41,6 +41,19 @@ describe("POST /apps", () => {
         expect(updates).toHaveLength(0);
     });
 
+    it("answers 409, not 500, when the database reports a unique violation", async () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        mockQuery.mockRejectedValue(
+            Object.assign(new Error("duplicate key value"), { code: "23505", constraint: "unique_user_app" }),
+        );
+
+        const res = await auth(request(app).post("/apps")).send({ name: "Second App" });
+
+        expect(res.statusCode).toBe(409);
+        expect(res.body).toEqual({ error: "Resource already exists" });
+        warn.mockRestore();
+    });
+
     it("rejects a blank app name", async () => {
         const res = await auth(request(app).post("/apps")).send({ name: "   " });
         expect(res.statusCode).toBe(400);

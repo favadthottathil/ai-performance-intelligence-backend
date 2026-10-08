@@ -106,7 +106,7 @@ To test rate limiting, set `process.env.METRICS_RATE_LIMIT = '2'` **before** the
 
 ## Database Migrations
 
-Numbered `.sql` files in [src/db/migrations/](src/db/migrations/) are run in sorted order by [run_migration.js](run_migration.js). Add new migrations as `007_...sql`, `008_...sql`, etc.
+Numbered `.sql` files in [src/db/migrations/](src/db/migrations/) are run in sorted order by [run_migration.js](run_migration.js). Add new migrations as `008_...sql`, `009_...sql`, etc. Keep them idempotent (`IF NOT EXISTS` / `IF EXISTS`): `run_migration.js` re-runs every file each time, and some databases predate the migrations. `007` drops a hand-added `unique_user_app` rule on `apps(user_id)` that some databases carry.
 
 ## Applications
 
@@ -118,8 +118,9 @@ Numbered `.sql` files in [src/db/migrations/](src/db/migrations/) are run in sor
 
 [src/app.js](src/app.js) registers a terminal error handler. Controllers and
 middleware pass failures to `next(error)` rather than swallowing them; a
-Postgres connection fault surfaces as a logged `503`. Express identifies that
-handler by its four-parameter arity, so its unused `next` parameter must stay.
+Postgres connection fault surfaces as a logged `503`, and a unique-constraint
+violation (SQLSTATE `23505`) as a `409`. Express identifies that handler by its
+four-parameter arity, so its unused `next` parameter must stay.
 
 ## API Key Format
 
