@@ -17,5 +17,8 @@ test
 Dockerfile
 .dockerignore
 
+# database dumps contain real data
+backups
+
 # unrelated local script
 verify_deploy.mjs

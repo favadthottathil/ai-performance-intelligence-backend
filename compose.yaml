@@ -27,5 +27,17 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # One-off schema migration. The "tools" profile keeps it out of a plain
+  # `docker compose up`; run it with `docker compose run --rm migrate`.
+  migrate:
+    build: .
+    env_file: .env.docker
+    command: ["node", "run_migration.js"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    profiles: ["tools"]
+
 volumes:
   pgdata:
